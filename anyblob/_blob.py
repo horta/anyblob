@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import pooch
 
 __all__ = ["get", "Blob"]
+
+BUFSIZE = 4 * 1024 * 1024
+
+
+def hash_file(path: Path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while data := f.read(BUFSIZE):
+            h.update(data)
+    return h.hexdigest()
 
 
 def get(hexhash: str) -> Blob:
@@ -23,8 +34,13 @@ class Blob:
 
     def as_path(self, name) -> Path:
         path = self._path.parent / name
+
+        if path.exists() and hash_file(path) != self._hexhash:
+            path.unlink()
+
         if not path.exists():
             path.hardlink_to(self._path)
+
         return path
 
     def __str__(self) -> str:
